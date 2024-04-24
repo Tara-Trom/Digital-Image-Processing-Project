@@ -1,0 +1,32 @@
+%Functions -----------------------------------------------------------------------
+% Perform blob analysis
+blobAnalysis = vision.BlobAnalysis('BoundingBoxOutputPort', true, 'AreaOutputPort', false, 'CentroidOutputPort', false, 'EccentricityOutputPort', true);
+bbox = step(blobAnalysis, foregroundMask);
+
+% Perform morphological operations to refine the foreground mask
+foregroundMask = imopen(foregroundMask, strel('disk', 3));
+%---------------------------------------------------------------------------------
+
+% Load an image
+originalImage = imread('cars.jpg');
+
+% Convert the image to grayscale
+grayImage = rgb2gray(originalImage);
+
+% Apply Gaussian blur
+blurredImage = imgaussfilt(grayImage, 3);
+
+% Perform adaptive background subtraction
+foregroundDetector = vision.ForegroundDetector('NumGaussians', 3, 'NumTrainingFrames', 50, 'MinimumBackgroundRatio', 0.7);
+foregroundMask = step(foregroundDetector, blurredImage);
+
+% Perform morphological operations to refine the foreground mask
+foregroundMask = imopen(foregroundMask, strel('disk', 3));
+
+% Perform blob analysis
+blobAnalysis = vision.BlobAnalysis('BoundingBoxOutputPort', true, 'AreaOutputPort', false, 'CentroidOutputPort', false, 'EccentricityOutputPort', true);
+bbox = step(blobAnalysis, foregroundMask);
+
+% Visualize the detected cars by drawing bounding boxes on the original image
+resultImage = insertShape(originalImage, 'Rectangle', bbox, 'Color', 'green');
+imshow(resultImage);
