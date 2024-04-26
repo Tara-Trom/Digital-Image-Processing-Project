@@ -1,0 +1,50 @@
+% Load the single input image
+inputImage = imread('freeway_easy.jpg');
+
+% Convert the single input image to grayscale
+grayImage = rgb2gray(inputImage);
+
+% Apply edge detection (e.g., Canny edge detector)
+edgeMap = edge(grayImage, 'Canny');
+
+% Visualize the edge map
+figure;
+imshow(edgeMap);
+title('Edge Map');
+
+% Find contours in the edge map
+contours = bwboundaries(edgeMap);
+
+% Filter contours based on area, aspect ratio, etc.
+minArea = 1000; % Minimum area of contour to retain
+aspectRatioThreshold = 0.5; % Minimum aspect ratio of contour to retain
+filteredContours = {};
+for i = 1:numel(contours)
+    contour = contours{i};
+    % Compute area of contour
+    area = numel(contour);
+    % Compute aspect ratio of contour
+    minRow = min(contour(:, 1));
+    maxRow = max(contour(:, 1));
+    minCol = min(contour(:, 2));
+    maxCol = max(contour(:, 2));
+    aspectRatio = (maxCol - minCol) / (maxRow - minRow);
+    % Check if contour meets criteria (e.g., minimum area and aspect ratio)
+    if area >= minArea && aspectRatio > aspectRatioThreshold
+        filteredContours{end+1} = contour;
+    end
+end
+
+% Visualize filtered contours
+figure;
+imshow(inputImage);
+hold on;
+for i = 1:numel(filteredContours)
+    contour = filteredContours{i};
+    % Compute convex hull of the contour
+    convexHull = convhull(contour(:, 2), contour(:, 1));
+    % Visualize convex hull as a polygon
+    plot(contour(convexHull, 2), contour(convexHull, 1), 'g', 'LineWidth', 2);
+end
+hold off;
+title('Detected Cars (Convex Hulls)');
