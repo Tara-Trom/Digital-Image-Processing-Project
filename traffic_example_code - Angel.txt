@@ -1,0 +1,492 @@
+Code: 
+% Load the images (replace 'traffic1.png', 'traffic2.png', 'traffic3.png', 'traffic4.png' with your image file paths)
+img_day1 = imread('traffic1.png');
+img_day2 = imread('traffic2.png');
+img_day3 = imread('traffic3.png');
+img_day4 = imread('traffic4.png');
+
+% Convert images to grayscale
+img_day1_gray = rgb2gray(img_day1);
+img_day2_gray = rgb2gray(img_day2);
+img_day3_gray = rgb2gray(img_day3);
+img_day4_gray = rgb2gray(img_day4);
+
+% Ensure all images have the same size
+img_day1_gray = imresize(img_day1_gray, size(img_day2_gray));
+img_day3_gray = imresize(img_day3_gray, size(img_day2_gray));
+img_day4_gray = imresize(img_day4_gray, size(img_day2_gray));
+
+% Perform background selection using the first few frames
+background_frames = cat(4, img_day1_gray, img_day2_gray, img_day3_gray); % Concatenate frames along the fourth dimension
+background = median(background_frames, 4);
+
+% Define a threshold for detecting changes
+threshold = 50; % Adjust threshold value as needed
+
+% Compute absolute difference between each frame and the background
+diff_day1 = abs(double(img_day1_gray) - double(background));
+diff_day2 = abs(double(img_day2_gray) - double(background));
+diff_day3 = abs(double(img_day3_gray) - double(background));
+diff_day4 = abs(double(img_day4_gray) - double(background));
+
+% Threshold the difference images
+foreground_day1 = diff_day1 > threshold;
+foreground_day2 = diff_day2 > threshold;
+foreground_day3 = diff_day3 > threshold;
+foreground_day4 = diff_day4 > threshold;
+
+% Perform connected component analysis on the foreground masks
+cc_day1 = bwconncomp(foreground_day1);
+cc_day2 = bwconncomp(foreground_day2);
+cc_day3 = bwconncomp(foreground_day3);
+cc_day4 = bwconncomp(foreground_day4);
+
+% Compute bounding boxes for detected objects
+bbox_day1 = regionprops(cc_day1, 'BoundingBox');
+bbox_day2 = regionprops(cc_day2, 'BoundingBox');
+bbox_day3 = regionprops(cc_day3, 'BoundingBox');
+bbox_day4 = regionprops(cc_day4, 'BoundingBox');
+
+% Define minimum and maximum acceptable sizes for bounding boxes (adjust as needed)
+min_size = 7000; % Minimum size of bounding box
+max_size = 100000; % Maximum size of bounding box
+
+% Define minimum and maximum acceptable aspect ratios for bounding boxes (adjust as needed)
+min_aspect_ratio = 0.5; % Minimum aspect ratio (width/height)
+max_aspect_ratio = 3.2; % Maximum aspect ratio (width/height)
+
+% Filter out objects based on size and aspect ratio
+filtered_bbox_day1 = bbox_day1(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day1));
+
+filtered_bbox_day2 = bbox_day2(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day2));
+
+filtered_bbox_day3 = bbox_day3(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day3));
+
+filtered_bbox_day4 = bbox_day4(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day4));
+
+% Count the number of cars in each frame
+num_cars_day1 = numel(filtered_bbox_day1);
+num_cars_day2 = numel(filtered_bbox_day2);
+num_cars_day3 = numel(filtered_bbox_day3);
+num_cars_day4 = numel(filtered_bbox_day4);
+
+% Display the original images with the refined bounding boxes and car count
+figure;
+subplot(2, 2, 1);
+imshow(img_day1_gray);
+title(['Detected Cars - Day Image 1 (Count: ', num2str(num_cars_day1), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day1)
+    rectangle('Position', filtered_bbox_day1(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 2);
+imshow(img_day2_gray);
+title(['Detected Cars - Day Image 2 (Count: ', num2str(num_cars_day2), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day2)
+    rectangle('Position', filtered_bbox_day2(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 3);
+imshow(img_day3_gray);
+title(['Detected Cars - Day Image 3 (Count: ', num2str(num_cars_day3), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day3)
+    rectangle('Position', filtered_bbox_day3(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 4);
+imshow(img_day4_gray);
+title(['Detected Cars - Day Image 4 (Count: ', num2str(num_cars_day4), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day4)
+    rectangle('Position', filtered_bbox_day4(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+--------------------------------------------
+
+Code: 
+% Load the images (replace 'traffic1.png', 'traffic2.png', 'traffic3.png', 'traffic4.png' with your image file paths)
+img_day1 = imread('traffic1.png');
+img_day2 = imread('traffic2.png');
+img_day3 = imread('traffic3.png');
+img_day4 = imread('traffic4.png');
+
+% Convert images to grayscale
+img_day1_gray = rgb2gray(img_day1);
+img_day2_gray = rgb2gray(img_day2);
+img_day3_gray = rgb2gray(img_day3);
+img_day4_gray = rgb2gray(img_day4);
+
+% Ensure all images have the same size
+img_day1_gray = imresize(img_day1_gray, size(img_day2_gray));
+img_day3_gray = imresize(img_day3_gray, size(img_day2_gray));
+img_day4_gray = imresize(img_day4_gray, size(img_day2_gray));
+
+% Perform background selection using the first few frames
+background_frames = cat(4, img_day1_gray, img_day2_gray, img_day3_gray); % Concatenate frames along the fourth dimension
+background = median(background_frames, 4);
+
+% Define a threshold for detecting changes
+threshold = 30; % Adjust threshold value as needed
+
+% Compute absolute difference between each frame and the background
+diff_day1 = abs(double(img_day1_gray) - double(background));
+diff_day2 = abs(double(img_day2_gray) - double(background));
+diff_day3 = abs(double(img_day3_gray) - double(background));
+diff_day4 = abs(double(img_day4_gray) - double(background));
+
+% Threshold the difference images
+foreground_day1 = diff_day1 > threshold;
+foreground_day2 = diff_day2 > threshold;
+foreground_day3 = diff_day3 > threshold;
+foreground_day4 = diff_day4 > threshold;
+
+% Perform connected component analysis on the foreground masks
+cc_day1 = bwconncomp(foreground_day1);
+cc_day2 = bwconncomp(foreground_day2);
+cc_day3 = bwconncomp(foreground_day3);
+cc_day4 = bwconncomp(foreground_day4);
+
+% Compute bounding boxes for detected objects
+bbox_day1 = regionprops(cc_day1, 'BoundingBox');
+bbox_day2 = regionprops(cc_day2, 'BoundingBox');
+bbox_day3 = regionprops(cc_day3, 'BoundingBox');
+bbox_day4 = regionprops(cc_day4, 'BoundingBox');
+
+% Define minimum and maximum acceptable sizes for bounding boxes (adjust as needed)
+min_size = 10000; % Minimum size of bounding box
+max_size = 100000; % Maximum size of bounding box
+
+% Define minimum and maximum acceptable aspect ratios for bounding boxes (adjust as needed)
+min_aspect_ratio = 1.5; % Minimum aspect ratio (width/height)
+max_aspect_ratio = 6.2; % Maximum aspect ratio (width/height)
+
+% Filter out objects based on size and aspect ratio
+filtered_bbox_day1 = bbox_day1(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day1));
+
+filtered_bbox_day2 = bbox_day2(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day2));
+
+filtered_bbox_day3 = bbox_day3(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day3));
+
+filtered_bbox_day4 = bbox_day4(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day4));
+
+% Count the number of cars in each frame
+num_cars_day1 = numel(filtered_bbox_day1);
+num_cars_day2 = numel(filtered_bbox_day2);
+num_cars_day3 = numel(filtered_bbox_day3);
+num_cars_day4 = numel(filtered_bbox_day4);
+
+% Display the original images with the refined bounding boxes and car count
+figure;
+subplot(2, 2, 1);
+imshow(img_day1_gray);
+title(['Detected Cars - Day Image 1 (Count: ', num2str(num_cars_day1), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day1)
+    rectangle('Position', filtered_bbox_day1(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 2);
+imshow(img_day2_gray);
+title(['Detected Cars - Day Image 2 (Count: ', num2str(num_cars_day2), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day2)
+    rectangle('Position', filtered_bbox_day2(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 3);
+imshow(img_day3_gray);
+title(['Detected Cars - Day Image 3 (Count: ', num2str(num_cars_day3), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day3)
+    rectangle('Position', filtered_bbox_day3(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 4);
+imshow(img_day4_gray);
+title(['Detected Cars - Day Image 4 (Count: ', num2str(num_cars_day4), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day4)
+    rectangle('Position', filtered_bbox_day4(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+---------------------------------------------------
+
+Code: 
+% Load the images (replace 'traffic1.png', 'traffic2.png', 'traffic3.png', 'traffic4.png' with your image file paths)
+img_day1 = imread('traffic1.png');
+img_day2 = imread('traffic2.png');
+img_day3 = imread('traffic3.png');
+img_day4 = imread('traffic4.png');
+
+% Convert images to grayscale
+img_day1_gray = rgb2gray(img_day1);
+img_day2_gray = rgb2gray(img_day2);
+img_day3_gray = rgb2gray(img_day3);
+img_day4_gray = rgb2gray(img_day4);
+
+% Ensure all images have the same size
+img_day1_gray = imresize(img_day1_gray, size(img_day2_gray));
+img_day3_gray = imresize(img_day3_gray, size(img_day2_gray));
+img_day4_gray = imresize(img_day4_gray, size(img_day2_gray));
+
+% Perform background selection using the first few frames
+background_frames = cat(4, img_day1_gray, img_day2_gray, img_day3_gray); % Concatenate frames along the fourth dimension
+background = median(background_frames, 4);
+
+% Define a threshold for detecting changes
+threshold = 35; % Adjust threshold value as needed
+
+% Compute absolute difference between each frame and the background
+diff_day1 = abs(double(img_day1_gray) - double(background));
+diff_day2 = abs(double(img_day2_gray) - double(background));
+diff_day3 = abs(double(img_day3_gray) - double(background));
+diff_day4 = abs(double(img_day4_gray) - double(background));
+
+% Threshold the difference images
+foreground_day1 = diff_day1 > threshold;
+foreground_day2 = diff_day2 > threshold;
+foreground_day3 = diff_day3 > threshold;
+foreground_day4 = diff_day4 > threshold;
+
+% Perform connected component analysis on the foreground masks
+cc_day1 = bwconncomp(foreground_day1);
+cc_day2 = bwconncomp(foreground_day2);
+cc_day3 = bwconncomp(foreground_day3);
+cc_day4 = bwconncomp(foreground_day4);
+
+% Compute bounding boxes for detected objects
+bbox_day1 = regionprops(cc_day1, 'BoundingBox');
+bbox_day2 = regionprops(cc_day2, 'BoundingBox');
+bbox_day3 = regionprops(cc_day3, 'BoundingBox');
+bbox_day4 = regionprops(cc_day4, 'BoundingBox');
+
+% Define minimum and maximum acceptable sizes for bounding boxes (adjust as needed)
+min_size = 7000; % Minimum size of bounding box
+max_size = 50000; % Maximum size of bounding box
+
+% Define minimum and maximum acceptable aspect ratios for bounding boxes (adjust as needed)
+min_aspect_ratio = 0.5; % Minimum aspect ratio (width/height)
+max_aspect_ratio = 3.2; % Maximum aspect ratio (width/height)
+
+% Filter out objects based on size and aspect ratio
+filtered_bbox_day1 = bbox_day1(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day1));
+
+filtered_bbox_day2 = bbox_day2(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day2));
+
+filtered_bbox_day3 = bbox_day3(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day3));
+
+filtered_bbox_day4 = bbox_day4(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day4));
+
+% Count the number of cars in each frame
+num_cars_day1 = numel(filtered_bbox_day1);
+num_cars_day2 = numel(filtered_bbox_day2);
+num_cars_day3 = numel(filtered_bbox_day3);
+num_cars_day4 = numel(filtered_bbox_day4);
+
+% Display the original images with the refined bounding boxes and car count
+figure;
+subplot(2, 2, 1);
+imshow(img_day1_gray);
+title(['Detected Cars - Day Image 1 (Count: ', num2str(num_cars_day1), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day1)
+    rectangle('Position', filtered_bbox_day1(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 2);
+imshow(img_day2_gray);
+title(['Detected Cars - Day Image 2 (Count: ', num2str(num_cars_day2), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day2)
+    rectangle('Position', filtered_bbox_day2(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 3);
+imshow(img_day3_gray);
+title(['Detected Cars - Day Image 3 (Count: ', num2str(num_cars_day3), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day3)
+    rectangle('Position', filtered_bbox_day3(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 4);
+imshow(img_day4_gray);
+title(['Detected Cars - Day Image 4 (Count: ', num2str(num_cars_day4), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day4)
+    rectangle('Position', filtered_bbox_day4(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+------------------------------------------------
+Code: 
+% Load the images (replace 'traffic1.png', 'traffic2.png', 'traffic3.png', 'traffic4.png' with your image file paths)
+img_day1 = imread('traffic1.png');
+img_day2 = imread('traffic2.png');
+img_day3 = imread('traffic3.png');
+img_day4 = imread('traffic4.png');
+
+% Convert images to grayscale
+img_day1_gray = rgb2gray(img_day1);
+img_day2_gray = rgb2gray(img_day2);
+img_day3_gray = rgb2gray(img_day3);
+img_day4_gray = rgb2gray(img_day4);
+
+% Ensure all images have the same size
+img_day1_gray = imresize(img_day1_gray, size(img_day2_gray));
+img_day3_gray = imresize(img_day3_gray, size(img_day2_gray));
+img_day4_gray = imresize(img_day4_gray, size(img_day2_gray));
+
+% Perform background selection using the first few frames
+background_frames = cat(4, img_day1_gray, img_day2_gray, img_day3_gray); % Concatenate frames along the fourth dimension
+background = median(background_frames, 4);
+
+% Define a threshold for detecting changes
+threshold = 30; % Adjust threshold value as needed
+
+% Compute absolute difference between each frame and the background
+diff_day1 = abs(double(img_day1_gray) - double(background));
+diff_day2 = abs(double(img_day2_gray) - double(background));
+diff_day3 = abs(double(img_day3_gray) - double(background));
+diff_day4 = abs(double(img_day4_gray) - double(background));
+
+% Threshold the difference images
+foreground_day1 = diff_day1 > threshold;
+foreground_day2 = diff_day2 > threshold;
+foreground_day3 = diff_day3 > threshold;
+foreground_day4 = diff_day4 > threshold;
+
+% Perform connected component analysis on the foreground masks
+cc_day1 = bwconncomp(foreground_day1);
+cc_day2 = bwconncomp(foreground_day2);
+cc_day3 = bwconncomp(foreground_day3);
+cc_day4 = bwconncomp(foreground_day4);
+
+% Compute bounding boxes for detected objects
+bbox_day1 = regionprops(cc_day1, 'BoundingBox');
+bbox_day2 = regionprops(cc_day2, 'BoundingBox');
+bbox_day3 = regionprops(cc_day3, 'BoundingBox');
+bbox_day4 = regionprops(cc_day4, 'BoundingBox');
+
+% Define minimum and maximum acceptable sizes for bounding boxes (adjust as needed)
+min_size = 7000; % Minimum size of bounding box
+max_size = 100000; % Maximum size of bounding box
+
+% Define minimum and maximum acceptable aspect ratios for bounding boxes (adjust as needed)
+min_aspect_ratio = 0.5; % Minimum aspect ratio (width/height)
+max_aspect_ratio = 4.0; % Maximum aspect ratio (width/height)
+
+% Filter out objects based on size and aspect ratio
+filtered_bbox_day1 = bbox_day1(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day1));
+
+filtered_bbox_day2 = bbox_day2(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day2));
+
+filtered_bbox_day3 = bbox_day3(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day3));
+
+filtered_bbox_day4 = bbox_day4(arrayfun(@(x) (x.BoundingBox(3) * x.BoundingBox(4)) >= min_size & ...
+    (x.BoundingBox(3) * x.BoundingBox(4)) <= max_size & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) >= min_aspect_ratio & ...
+    (x.BoundingBox(3) / x.BoundingBox(4)) <= max_aspect_ratio, bbox_day4));
+
+% Count the number of cars in each frame
+num_cars_day1 = numel(filtered_bbox_day1);
+num_cars_day2 = numel(filtered_bbox_day2);
+num_cars_day3 = numel(filtered_bbox_day3);
+num_cars_day4 = numel(filtered_bbox_day4);
+
+% Display the original images with the refined bounding boxes and car count
+figure;
+subplot(2, 2, 1);
+imshow(img_day1_gray);
+title(['Detected Cars - Day Image 1 (Count: ', num2str(num_cars_day1), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day1)
+    rectangle('Position', filtered_bbox_day1(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 2);
+imshow(img_day2_gray);
+title(['Detected Cars - Day Image 2 (Count: ', num2str(num_cars_day2), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day2)
+    rectangle('Position', filtered_bbox_day2(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 3);
+imshow(img_day3_gray);
+title(['Detected Cars - Day Image 3 (Count: ', num2str(num_cars_day3), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day3)
+    rectangle('Position', filtered_bbox_day3(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
+
+subplot(2, 2, 4);
+imshow(img_day4_gray);
+title(['Detected Cars - Day Image 4 (Count: ', num2str(num_cars_day4), ')']);
+hold on;
+for i = 1:numel(filtered_bbox_day4)
+    rectangle('Position', filtered_bbox_day4(i).BoundingBox, 'EdgeColor', 'r', 'LineWidth', 2);
+end
+hold off;
